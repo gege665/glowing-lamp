@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Keyboard,
@@ -22,12 +23,15 @@ import {
   isPinyinLetter,
   isT9Digit,
 } from '../utils/pinyinIme';
+import LingyanDragonIcon from './LingyanDragonIcon';
 import type { ChatMessage } from '../types';
 
 const IME_EXPANDED_KEY = 'soul_lingyan_ime_expanded';
 const IME_PANEL_KEY = 'soul_lingyan_ime_ai_panel';
 const IME_PANEL_MODE_KEY = 'soul_lingyan_ime_panel_mode';
 const IME_LAYOUT_KEY = 'soul_lingyan_ime_layout';
+/** 小火龙悬浮球上线：一次性收起，避免旧「展开」状态把球藏掉 */
+const IME_DRAGON_V2_KEY = 'soul_lingyan_ime_dragon_v2';
 
 type KeyboardLayout = '26' | '9';
 /** 面板展示模式 */
@@ -99,6 +103,19 @@ function loadFlag(key: string, fallback: boolean): boolean {
   }
 }
 
+function loadExpanded(): boolean {
+  try {
+    if (localStorage.getItem(IME_DRAGON_V2_KEY) !== '1') {
+      localStorage.setItem(IME_DRAGON_V2_KEY, '1');
+      localStorage.setItem(IME_EXPANDED_KEY, '0');
+      return false;
+    }
+  } catch {
+    /* ignore */
+  }
+  return loadFlag(IME_EXPANDED_KEY, false);
+}
+
 function saveFlag(key: string, value: boolean) {
   try {
     localStorage.setItem(key, value ? '1' : '0');
@@ -130,9 +147,8 @@ export default function FloatingIME() {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const runGenerateReplies = useAppStore((s) => s.runGenerateReplies);
 
-  const [expanded, setExpanded] = useState(() =>
-    loadFlag(IME_EXPANDED_KEY, typeof window !== 'undefined' ? window.innerWidth < 1024 : true)
-  );
+  /** 默认收起，保证右下角小火龙悬浮球始终可见 */
+  const [expanded, setExpanded] = useState(() => loadExpanded());
   const [aiPanelOpen, setAiPanelOpen] = useState(() => loadFlag(IME_PANEL_KEY, true));
   const [panelMode, setPanelMode] = useState<PanelMode>(loadPanelMode);
   const [draft, setDraft] = useState('');
@@ -577,28 +593,39 @@ export default function FloatingIME() {
 
   if (settingsOpen) return null;
 
-  /* 收起：小恐龙触发球 */
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+
+  /* 收起：小火龙悬浮球（手机/平板/桌面均 portal 到 body，避免被 overflow 裁切） */
   if (!expanded) {
-    return (
+    const fab = (
       <button
         type="button"
         onClick={() => {
           setExpanded(true);
           setAiPanelOpen(true);
         }}
-        className="ime-fab ime-dragon-fab fixed z-50 flex items-center justify-center touch-manipulation"
+        className="ime-fab ime-dragon-fab fixed z-[60] flex items-center justify-center touch-manipulation"
         title="打开灵焰输入法"
-        aria-label="打开灵焰输入法"
+        aria-label="打开灵焰小火龙输入法"
       >
-        <span className="ime-dragon-face" aria-hidden>
-          🦖
-        </span>
+        <LingyanDragonIcon className="ime-dragon-face w-10 h-10" />
+        <span className="ime-dragon-pulse" aria-hidden />
       </button>
     );
+    return portalTarget ? createPortal(fab, portalTarget) : fab;
   }
 
-  return (
-    <div className="ime-shell fixed inset-x-0 bottom-0 z-50 flex flex-col pointer-events-none">
+  const shell = (
+    <div className="ime-root fixed inset-0 z-50 flex flex-col justify-end pointer-events-none">
+      {/* 手机：半透明遮罩点按收起；平板/桌面不挡操作 */}
+      <button
+        type="button"
+        className="pointer-events-auto absolute inset-0 bg-black/40 md:hidden"
+        aria-label="收起输入法"
+        onClick={() => setExpanded(false)}
+      />
+
+      <div className="ime-shell relative z-[1] flex flex-col pointer-events-none w-full">
       <input
         ref={fileRef}
         type="file"
@@ -613,8 +640,9 @@ export default function FloatingIME() {
 
       {/* AI 风格面板 */}
       {aiPanelOpen && (
-        <div className="ime-ai-panel pointer-events-auto mx-auto w-full max-w-md px-2 pb-1">
-          <div className="relative rounded-2xl border-2 border-orange-400/80 bg-white/95 backdrop-blur-xl shadow-xl shadow-orange-900/15 overflow-hidden">
+        <div className="ime-ai-panel pointer-events-auto mx-auto w-full max-w-md px-2 pb-5 relative shrink min-h-0">
+          <div className="relative rounded-2xl border-2 border-orange-400/80 bg-white/95 backdrop-blur-xl shadow-xl shadow-orange-900/15 overflow-visible">
+            <div className="rounded-2xl overflow-hidden">
             {/* 顶栏：模式三选一始终可见 */}
             <div className="flex items-center gap-1.5 px-2.5 pt-2.5 pb-1.5 overflow-x-auto no-scrollbar">
               {panelMode !== 'minimal' && (
@@ -856,9 +884,19 @@ export default function FloatingIME() {
               </div>
             )}
 
-            {/* 指向恐龙的小三角 */}
+            </div>
+            {/* 指向小火龙的小三角 */}
             <div className="absolute -bottom-1.5 right-7 w-3 h-3 rotate-45 bg-white border-r-2 border-b-2 border-orange-400/80" />
           </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="ime-dragon-peek absolute -bottom-1 right-3 z-10"
+            title="收起为小火龙悬浮球"
+            aria-label="收起为小火龙悬浮球"
+          >
+            <LingyanDragonIcon className="w-9 h-9" />
+          </button>
         </div>
       )}
 
@@ -913,10 +951,10 @@ export default function FloatingIME() {
             type="button"
             onClick={() => setAiPanelOpen((v) => !v)}
             className="ime-dragon-mini"
-            title="灵焰助手"
+            title="灵焰小火龙"
             aria-label="切换 AI 面板"
           >
-            <span aria-hidden>🦖</span>
+            <LingyanDragonIcon className="w-7 h-7" />
           </button>
 
           <button
@@ -1198,6 +1236,9 @@ export default function FloatingIME() {
           className={`h-[env(safe-area-inset-bottom,0px)] ${layout === '9' ? 'bg-black' : 'bg-[#d1d3d9]'}`}
         />
       </div>
+      </div>
     </div>
   );
+
+  return portalTarget ? createPortal(shell, portalTarget) : shell;
 }
