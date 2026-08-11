@@ -30,8 +30,8 @@ const IME_EXPANDED_KEY = 'soul_lingyan_ime_expanded';
 const IME_PANEL_KEY = 'soul_lingyan_ime_ai_panel';
 const IME_PANEL_MODE_KEY = 'soul_lingyan_ime_panel_mode';
 const IME_LAYOUT_KEY = 'soul_lingyan_ime_layout';
-/** 小火龙悬浮球上线：一次性收起，避免旧「展开」状态把球藏掉 */
-const IME_DRAGON_V2_KEY = 'soul_lingyan_ime_dragon_v2';
+/** 小火龙悬浮球：强制默认收起，保证入口始终可见 */
+const IME_DRAGON_V3_KEY = 'soul_lingyan_ime_dragon_v3';
 
 type KeyboardLayout = '26' | '9';
 /** 面板展示模式 */
@@ -105,8 +105,8 @@ function loadFlag(key: string, fallback: boolean): boolean {
 
 function loadExpanded(): boolean {
   try {
-    if (localStorage.getItem(IME_DRAGON_V2_KEY) !== '1') {
-      localStorage.setItem(IME_DRAGON_V2_KEY, '1');
+    if (localStorage.getItem(IME_DRAGON_V3_KEY) !== '1') {
+      localStorage.setItem(IME_DRAGON_V3_KEY, '1');
       localStorage.setItem(IME_EXPANDED_KEY, '0');
       return false;
     }
@@ -138,6 +138,8 @@ export default function FloatingIME() {
   const isAnalyzing = useAppStore((s) => s.isAnalyzing);
   const showToast = useAppStore((s) => s.showToast);
   const settingsOpen = useAppStore((s) => s.settingsOpen);
+  const floatingImeOpen = useAppStore((s) => s.floatingImeOpen);
+  const setFloatingImeOpen = useAppStore((s) => s.setFloatingImeOpen);
   const setIceBreakerOpen = useAppStore((s) => s.setIceBreakerOpen);
   const setLoveSubTab = useAppStore((s) => s.setLoveSubTab);
   const resetChatContext = useAppStore((s) => s.resetChatContext);
@@ -147,7 +149,6 @@ export default function FloatingIME() {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const runGenerateReplies = useAppStore((s) => s.runGenerateReplies);
 
-  /** 默认收起，保证右下角小火龙悬浮球始终可见 */
   const [expanded, setExpanded] = useState(() => loadExpanded());
   const [aiPanelOpen, setAiPanelOpen] = useState(() => loadFlag(IME_PANEL_KEY, true));
   const [panelMode, setPanelMode] = useState<PanelMode>(loadPanelMode);
@@ -164,6 +165,29 @@ export default function FloatingIME() {
   const [ocrLoading, setOcrLoading] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const openIme = useCallback(() => {
+    setExpanded(true);
+    setAiPanelOpen(true);
+    setFloatingImeOpen(true);
+  }, [setFloatingImeOpen]);
+
+  const closeIme = useCallback(() => {
+    setExpanded(false);
+    setFloatingImeOpen(false);
+  }, [setFloatingImeOpen]);
+
+  // 操作区小火龙：仅在外部请求打开时展开
+  useEffect(() => {
+    if (floatingImeOpen) {
+      setExpanded(true);
+      setAiPanelOpen(true);
+    }
+  }, [floatingImeOpen]);
+
+  useEffect(() => {
+    saveFlag(IME_EXPANDED_KEY, expanded);
+  }, [expanded]);
   const ocrAbortRef = useRef<AbortController | null>(null);
 
   const replies = analysis?.replies?.slice(0, 4) ?? [];
@@ -185,10 +209,6 @@ export default function FloatingIME() {
   const composingDisplay = t9Mode
     ? lockedPinyin || pinyinOptions[0]?.py || composing
     : composing;
-
-  useEffect(() => {
-    saveFlag(IME_EXPANDED_KEY, expanded);
-  }, [expanded]);
 
   useEffect(() => {
     saveFlag(IME_PANEL_KEY, aiPanelOpen);
@@ -600,15 +620,12 @@ export default function FloatingIME() {
     const fab = (
       <button
         type="button"
-        onClick={() => {
-          setExpanded(true);
-          setAiPanelOpen(true);
-        }}
+        onClick={openIme}
         className="ime-fab ime-dragon-fab fixed z-[60] flex items-center justify-center touch-manipulation"
-        title="打开灵焰输入法"
+        title="打开灵焰小火龙输入法"
         aria-label="打开灵焰小火龙输入法"
       >
-        <LingyanDragonIcon className="ime-dragon-face w-10 h-10" />
+        <LingyanDragonIcon className="ime-dragon-face w-11 h-11" />
         <span className="ime-dragon-pulse" aria-hidden />
       </button>
     );
@@ -622,7 +639,7 @@ export default function FloatingIME() {
         type="button"
         className="pointer-events-auto absolute inset-0 bg-black/40 md:hidden"
         aria-label="收起输入法"
-        onClick={() => setExpanded(false)}
+        onClick={closeIme}
       />
 
       <div className="ime-shell relative z-[1] flex flex-col pointer-events-none w-full">
@@ -890,7 +907,7 @@ export default function FloatingIME() {
           </div>
           <button
             type="button"
-            onClick={() => setExpanded(false)}
+            onClick={closeIme}
             className="ime-dragon-peek absolute -bottom-1 right-3 z-10"
             title="收起为小火龙悬浮球"
             aria-label="收起为小火龙悬浮球"
@@ -959,7 +976,7 @@ export default function FloatingIME() {
 
           <button
             type="button"
-            onClick={() => setExpanded(false)}
+            onClick={closeIme}
             className={`ime-toolbar-btn text-[11px] px-2 ${layout === '9' ? 'text-zinc-300' : ''}`}
             title="收起输入法"
           >

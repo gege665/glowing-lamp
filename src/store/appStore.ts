@@ -177,6 +177,8 @@ interface AppState {
   toast: string | null;
   settingsOpen: boolean;
   iceBreakerOpen: boolean;
+  /** 灵焰小火龙输入法是否展开 */
+  floatingImeOpen: boolean;
   serverKeyConfigured: boolean;
   /** 收藏话术变更计数，驱动 SavedRepliesPanel 刷新 */
   savedRepliesTick: number;
@@ -212,6 +214,7 @@ interface AppState {
 
   setSettingsOpen: (open: boolean) => void;
   setIceBreakerOpen: (open: boolean) => void;
+  setFloatingImeOpen: (open: boolean) => void;
   setActivePanel: (panel: ActivePanel) => void;
   setLoveSubTab: (tab: LoveSubTab) => void;
   setDrillScenario: (id: DrillScenarioId) => void;
@@ -273,6 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   toast: null,
   settingsOpen: false,
   iceBreakerOpen: false,
+  floatingImeOpen: false,
   serverKeyConfigured: false,
   savedRepliesTick: 0,
   activePartnerId: '',
@@ -296,6 +300,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSettingsOpen: (open) => set({ settingsOpen: open }),
   setIceBreakerOpen: (open) => set({ iceBreakerOpen: open }),
+  setFloatingImeOpen: (open) => set({ floatingImeOpen: open }),
   setImageTopicCaption: (caption) => set({ imageTopicCaption: caption }),
   clearImageTopic: () =>
     set({

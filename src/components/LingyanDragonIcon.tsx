@@ -1,4 +1,4 @@
-/** 灵焰小火龙吉祥物（原创造型，用于输入法悬浮球） */
+/** 灵焰小火龙吉祥物（对标产品悬浮球形象） */
 export default function LingyanDragonIcon({
   className = '',
   title = '灵焰小火龙',
@@ -16,35 +16,42 @@ export default function LingyanDragonIcon({
       aria-label={title}
     >
       <title>{title}</title>
-      {/* 尾巴火焰 */}
+      {/* 尾巴火焰（右侧） */}
       <path
-        d="M48 38c6 2 10 8 9 14-4-1-7-3-9-6 1 5-1 9-5 12 1-5 0-9-2-12 4-1 6-4 7-8z"
-        fill="#FB923C"
+        d="M44 34c7 1 11 8 10 15-3.5-1-7-3.5-9-7 0 5-2 9-6 12 2-4.5 1.5-8.5 0-11 3.5-1.5 5-4.5 5-9z"
+        fill="#F97316"
       />
       <path
-        d="M50 42c4 2 6 6 5.5 10-2.5-.8-4.5-2.2-5.5-4.5.5 3.2-.5 6-3 8 .8-3.2.2-5.8-1-7.8 2.5-.6 3.8-2.8 4-5.7z"
+        d="M46 38c4.5 1 7 5.5 6.2 10-2-.7-4-2.2-5.2-4.5.4 3-.6 5.8-3.2 8 .9-3 .4-5.5-.6-7.5 2.2-.7 3.2-2.8 2.8-6z"
         fill="#FDE68A"
       />
-      {/* 身体 */}
-      <ellipse cx="28" cy="36" rx="16" ry="14" fill="#F97316" />
-      <ellipse cx="28" cy="38" rx="10" ry="8" fill="#FDBA74" opacity="0.85" />
-      {/* 头 */}
-      <circle cx="30" cy="22" r="14" fill="#FB923C" />
-      {/* 嘴鼻 */}
-      <ellipse cx="38" cy="24" rx="7" ry="5.5" fill="#FDBA74" />
-      <ellipse cx="42" cy="24.5" rx="2.2" ry="1.6" fill="#EA580C" opacity="0.55" />
-      {/* 眼睛 */}
-      <circle cx="26" cy="20" r="3.2" fill="#1C1917" />
-      <circle cx="27.1" cy="19" r="1.1" fill="#FFF" />
-      <circle cx="34.5" cy="19.5" r="2.6" fill="#1C1917" />
-      <circle cx="35.3" cy="18.7" r="0.9" fill="#FFF" />
+      {/* 身体（圆滚） */}
+      <ellipse cx="28.5" cy="36" rx="15.5" ry="14.5" fill="#FB923C" />
+      <ellipse cx="28" cy="39" rx="9.5" ry="8" fill="#FFEDD5" />
+      {/* 头（偏大，Q 版） */}
+      <circle cx="29" cy="24" r="15" fill="#FB923C" />
+      {/* 头顶深色斑点 */}
+      <circle cx="23" cy="14" r="1.6" fill="#EA580C" opacity="0.55" />
+      <circle cx="30" cy="12.5" r="1.2" fill="#EA580C" opacity="0.45" />
+      {/* 大眼睛 */}
+      <ellipse cx="24.5" cy="23" rx="4.2" ry="4.6" fill="#1C1917" />
+      <ellipse cx="34.5" cy="23" rx="4.2" ry="4.6" fill="#1C1917" />
+      <circle cx="25.6" cy="21.6" r="1.35" fill="#FFF" />
+      <circle cx="35.6" cy="21.6" r="1.35" fill="#FFF" />
+      <circle cx="23.4" cy="24.8" r="0.55" fill="#FFF" opacity="0.7" />
+      <circle cx="33.4" cy="24.8" r="0.55" fill="#FFF" opacity="0.7" />
+      {/* 微笑 */}
+      <path
+        d="M26.5 29.5c1.4 1.6 4.2 1.6 5.6 0"
+        stroke="#9A3412"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.55"
+      />
       {/* 腮红 */}
-      <ellipse cx="22" cy="25" rx="2.4" ry="1.5" fill="#FB7185" opacity="0.55" />
-      {/* 头顶小角 */}
-      <path d="M24 10l2.5 5.5H21.5L24 10z" fill="#EA580C" />
-      <path d="M31 8l2 5h-4l2-5z" fill="#EA580C" />
-      {/* 肚皮高光 */}
-      <circle cx="22" cy="32" r="2" fill="#FED7AA" opacity="0.7" />
+      <ellipse cx="19.5" cy="27.5" rx="2.6" ry="1.5" fill="#FB7185" opacity="0.45" />
+      <ellipse cx="38.5" cy="27.5" rx="2.6" ry="1.5" fill="#FB7185" opacity="0.45" />
     </svg>
   );
 }
