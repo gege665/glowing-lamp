@@ -2,7 +2,7 @@ import type { UserSettings } from '../types';
 import { loadSettings } from './storageService';
 import { normalizeApiKey } from '../utils/apiKey';
 import { apiFetch } from '../utils/apiFetch';
-import { checkApiHealth } from './aiService';
+import { assertApiKeyConfigured } from './clientChatApi';
 
 export interface OcrChatLine {
   role: 'me' | 'other';
@@ -14,19 +14,13 @@ const MAX_OCR_BASE64_CHARS = 3.5 * 1024 * 1024;
 const MAX_OCR_DIMENSION = 1600;
 const JPEG_QUALITY_START = 0.82;
 
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
-
 export async function recognizeChatScreenshot(
   imageBase64: string,
   settings?: UserSettings,
   signal?: AbortSignal
 ): Promise<OcrChatLine[]> {
   const cfg = settings ?? loadSettings();
-  await assertKey(cfg);
+  await assertApiKeyConfigured(cfg);
   const apiKey = normalizeApiKey(cfg.apiKey);
 
   const res = await apiFetch('/api/ocr', {

@@ -2,7 +2,6 @@ import type { UserSettings } from '../types';
 import { loadSettings } from './storageService';
 import { normalizeApiKey } from '../utils/apiKey';
 import { apiFetch } from '../utils/apiFetch';
-import { checkApiHealth } from './aiService';
 import { prepareImageForOcr } from './ocrService';
 import {
   IMAGE_TOPIC_TEXT_SYSTEM,
@@ -10,33 +9,8 @@ import {
   normalizeImageTopicResult,
   type ImageTopicResult,
 } from '../constants/imageTopic';
-import { getModelCallParams, mergeSystemPrompt } from '../constants/modelCallParams';
-import { resolveModelForSettings } from '../constants/modelRouting';
-
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
-
-function extractJsonObject(raw: string): Record<string, unknown> | null {
-  const text = raw.trim();
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    /* continue */
-  }
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start >= 0 && end > start) {
-    try {
-      return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
+import { extractJsonObject } from '../utils/extractJsonObject';
+import { assertApiKeyConfigured, postChatCompletion } from './clientChatApi';
 
 function visionProvider(cfg: UserSettings): 'aiyiwei' | 'openrouter' {
   return cfg.provider === 'aiyiwei' ? 'aiyiwei' : 'openrouter';
@@ -50,7 +24,7 @@ export async function analyzeImageForTopics(
   signal?: AbortSignal
 ): Promise<ImageTopicResult> {
   const cfg = settings ?? loadSettings();
-  await assertKey(cfg);
+  await assertApiKeyConfigured(cfg);
   const apiKey = normalizeApiKey(cfg.apiKey);
 
   const res = await apiFetch('/api/ocr', {
@@ -103,47 +77,24 @@ export async function analyzeCaptionForTopics(
 
   const cfg = settings ?? loadSettings();
   try {
-    await assertKey(cfg);
+    await assertApiKeyConfigured(cfg);
   } catch {
     return buildLocalImageTopic(text);
   }
 
-  const chatParams = getModelCallParams('chat');
-  const model = resolveModelForSettings('chat', cfg);
-  const apiKey = normalizeApiKey(cfg.apiKey);
-
   try {
-    const res = await apiFetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-      body: JSON.stringify({
-        provider: cfg.provider,
-        apiKey,
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: mergeSystemPrompt(chatParams.systemTone, IMAGE_TOPIC_TEXT_SYSTEM),
-          },
-          {
-            role: 'user',
-            content: `对方发图配文：「${text.slice(0, 200)}」
+    const raw = await postChatCompletion({
+      settings: cfg,
+      systemPrompt: IMAGE_TOPIC_TEXT_SYSTEM,
+      userContent: `对方发图配文：「${text.slice(0, 200)}」
 （无原图，按配文推断画面与可聊点）
 输出 JSON：
 {"sceneSummary":"","hotspots":[],"interests":[],"lifeDetails":[],"emotion":"","replies":["","",""],"topics":["","",""]}`,
-          },
-        ],
-        temperature: 0.8,
-        maxTokens: 600,
-        jsonMode: true,
-      }),
+      signal,
+      temperature: 0.8,
+      maxTokens: 600,
     });
-
-    if (!res.ok) return buildLocalImageTopic(text);
-
-    const data = await res.json();
-    const obj = extractJsonObject(String(data.content || ''));
+    const obj = extractJsonObject(raw);
     if (!obj) return buildLocalImageTopic(text);
     const topic = normalizeImageTopicResult(obj as Partial<ImageTopicResult>, 'ai');
     if (!topic.replies.length) {

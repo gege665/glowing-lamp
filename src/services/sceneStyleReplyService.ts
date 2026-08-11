@@ -1,7 +1,7 @@
 import type { ReplySuggestion, UserSettings, AnalysisResult, ChatMessage } from '../types';
 import { loadSettings } from './storageService';
 import { normalizeApiKey } from '../utils/apiKey';
-import { checkApiHealth } from './aiService';
+import { assertApiKeyConfigured } from './clientChatApi';
 import { buildProfileContextBlock } from '../utils/profileContext';
 import { getModelCallParams, mergeSystemPrompt } from '../constants/modelCallParams';
 import { resolveModelForSettings } from '../constants/modelRouting';
@@ -34,12 +34,6 @@ import {
 import { apiFetch } from '../utils/apiFetch';
 
 const SCENE_REQUEST_TIMEOUT_MS = 120_000;
-
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
 
 function isValidSceneLine(content: string, settings: UserSettings): boolean {
   const maxLen = getReplyLengthCap(settings.toneModifiers ?? []);
@@ -274,7 +268,7 @@ export async function generateSceneStyleReplies(
   throwIfAborted(signal);
 
   const cfg = resolveSituationSettings(settings ?? loadSettings(), messages);
-  await assertKey(cfg);
+  await assertApiKeyConfigured(cfg);
 
   const styles = pickStylesForGeneration(resolveReplyStyles(cfg, ''), cfg);
   const userPrompt = buildScenePrompt(cfg, styles, messages);

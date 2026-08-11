@@ -1,8 +1,5 @@
 import type { AnalysisResult, ChatMessage, UserSettings } from '../types';
 import { loadSettings } from './storageService';
-import { normalizeApiKey } from '../utils/apiKey';
-import { apiFetch } from '../utils/apiFetch';
-import { checkApiHealth } from './aiService';
 import {
   RELATIONSHIP_REPORT_SYSTEM,
   LINGYAN_RELATIONSHIP_DATA_DIRECTIVE,
@@ -12,55 +9,22 @@ import {
   parseRelationshipReport,
   type RelationshipDataReport,
 } from '../constants/relationshipReport';
-import { getModelCallParams, mergeSystemPrompt } from '../constants/modelCallParams';
-import { resolveModelForSettings } from '../constants/modelRouting';
-
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
+import { assertApiKeyConfigured, postChatCompletion } from './clientChatApi';
 
 async function callReportApi(
   cfg: UserSettings,
   userPrompt: string,
   signal?: AbortSignal
 ): Promise<string> {
-  const chatParams = getModelCallParams('deepAnalysis');
-  const model = resolveModelForSettings('deepAnalysis', cfg);
-  const apiKey = normalizeApiKey(cfg.apiKey);
-
-  const res = await apiFetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return postChatCompletion({
+    settings: cfg,
+    systemPrompt: `${RELATIONSHIP_REPORT_SYSTEM}\n${LINGYAN_RELATIONSHIP_DATA_DIRECTIVE}`,
+    userContent: userPrompt,
+    task: 'deepAnalysis',
     signal,
-    body: JSON.stringify({
-      provider: cfg.provider,
-      apiKey,
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: mergeSystemPrompt(
-            chatParams.systemTone,
-            `${RELATIONSHIP_REPORT_SYSTEM}\n${LINGYAN_RELATIONSHIP_DATA_DIRECTIVE}`
-          ),
-        },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.55,
-      maxTokens: 900,
-      jsonMode: true,
-    }),
+    temperature: 0.55,
+    maxTokens: 900,
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(String((err as { error?: string }).error || '关系报告生成失败'));
-  }
-
-  const data = await res.json();
-  return String(data.content || '');
 }
 
 /** 生成完整关系数据分析报告 */
@@ -87,7 +51,7 @@ export async function generateRelationshipDataReport(
   }
 
   try {
-    await assertKey(cfg);
+    await assertApiKeyConfigured(cfg);
     const prompt = buildRelationshipReportUserPrompt(messages, cfg, metrics, analysis);
     const raw = await callReportApi(cfg, prompt, opts?.signal);
     const parsed = parseRelationshipReport(raw, metrics);

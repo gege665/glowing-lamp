@@ -163,6 +163,44 @@ const REPLY_REPAIR_MAX = 1;
 const REPLY_FAST_ACCEPT_COUNT = 3;
 /** 同指纹进行中的分析请求（防双击打爆上游） */
 const inflightAnalysis = new Map<string, Promise<AnalysisResult>>();
+
+/** 中止分析时清空 in-flight，避免后续请求复用已 abort 的 Promise */
+export function clearInflightAnalysis(): void {
+  inflightAnalysis.clear();
+}
+
+function raceWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(
+      signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException('Aborted', 'AbortError')
+    );
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      cleanup();
+      reject(
+        signal.reason instanceof Error
+          ? signal.reason
+          : new DOMException('Aborted', 'AbortError')
+      );
+    };
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (v) => {
+        cleanup();
+        resolve(v);
+      },
+      (err) => {
+        cleanup();
+        reject(err);
+      }
+    );
+  });
+}
 /** 客户端 SSE / API 单次请求超时（毫秒） */
 const CLIENT_REQUEST_TIMEOUT_MS = 120_000;
 
@@ -1680,7 +1718,16 @@ export async function analyzeConversation(
         0,
         'inflight-dedupe'
       );
-      return inflight;
+      try {
+        return await raceWithAbort(inflight, signal);
+      } catch (err) {
+        // 本调用已取消：直接抛出
+        if (isAbortError(err) && signal?.aborted) throw err;
+        // 共享请求被他人 abort / 失败：清掉脏 entry，重新发起
+        if (inflightAnalysis.get(cacheKey) === inflight) {
+          inflightAnalysis.delete(cacheKey);
+        }
+      }
     }
   }
 

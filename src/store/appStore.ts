@@ -18,7 +18,11 @@ import {
   generateId,
   clearAllData,
 } from '../services/storageService';
-import { analyzeConversation, checkApiHealth } from '../services/aiService';
+import {
+  analyzeConversation,
+  checkApiHealth,
+  clearInflightAnalysis,
+} from '../services/aiService';
 import { analysisResultCache } from '../utils/computeCache';
 import {
   generateSceneStyleReplies,
@@ -747,6 +751,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const messages = [...get().messages, ...imported];
     saveMessages(messages);
     saveAnalysis(null);
+    // 导入会清空 analysis；必须同步清结果缓存，避免旧 TTL 命中错误话术
+    analysisResultCache.clear();
+    clearInflightAnalysis();
     set({ messages, analysis: null });
     set({ partnerSummaries: persistWorkspace(get(), null) });
   },
@@ -833,6 +840,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     analysisAbort?.abort();
+    clearInflightAnalysis();
     analysisAbort = new AbortController();
     const seq = ++analysisSeq;
 
@@ -904,6 +912,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     analysisAbort?.abort();
+    clearInflightAnalysis();
     analysisAbort = new AbortController();
     const seq = ++analysisSeq;
     const { signal } = analysisAbort;
@@ -987,6 +996,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   clearAnalysis: () => {
     analysisResultCache.clear();
+    clearInflightAnalysis();
     saveAnalysis(null);
     set({ analysis: null, relationshipTracking: null });
     set({ partnerSummaries: persistWorkspace(get(), null) });
@@ -997,6 +1007,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     analysisAbort = null;
     analysisSeq++;
     analysisResultCache.clear();
+    clearInflightAnalysis();
     saveMessages([]);
     saveAnalysis(null);
     const settings = { ...get().settings, tonePreference: '' };
@@ -1040,6 +1051,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     analysisAbort?.abort();
     analysisAbort = null;
     analysisSeq++;
+    analysisResultCache.clear();
+    clearInflightAnalysis();
     clearAllData();
     try {
       localStorage.removeItem('soul_partner_archives_v1');

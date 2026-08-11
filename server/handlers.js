@@ -98,26 +98,10 @@ function requestHasValidAccessToken(req) {
   return isValidApiAccessToken(req.headers['x-api-access-token']);
 }
 
-function requestFromAllowedSite(req) {
-  const allowed = getAllowedSiteOrigins();
-  if (allowed.size === 0) return false;
-  const origin = req.headers.origin || '';
-  const referer = req.headers.referer || '';
-  return [...allowed].some((base) => {
-    if (origin === base) return true;
-    if (!referer) return false;
-    try {
-      return new URL(referer).origin === base;
-    } catch {
-      return false;
-    }
-  });
-}
-
 /**
  * 生产环境 + 服务端 Key：禁止外部脚本白嫖。
- * 优先：真实 BYOK；其次：x-api-access-token（配置了 API_ACCESS_TOKEN 时强制，不再接受仅 Origin）；
- * 未配置令牌时回退 Origin/Referer（兼容旧部署）。
+ * 优先：真实 BYOK；其次：必须持有 x-api-access-token。
+ * 有服务端 Key 时不再接受「仅 Origin」——Origin/Referer 可被伪造。
  */
 export function assertProductionApiAccess(req, provider, body) {
   if (provider !== 'openrouter' && provider !== 'juhe' && provider !== 'aiyiwei') return;
@@ -133,30 +117,22 @@ export function assertProductionApiAccess(req, provider, body) {
   if (isClientBringYourOwnKey(provider, body?.apiKey)) return;
 
   const tokenConfigured = Boolean(String(process.env.API_ACCESS_TOKEN || '').trim());
-  if (tokenConfigured) {
-    if (requestHasValidAccessToken(req)) return;
+  if (!tokenConfigured) {
     throw Object.assign(
       new Error(
-        '未授权：需要访问令牌。请在 Vercel 同时配置 API_ACCESS_TOKEN 与 VITE_API_ACCESS_TOKEN（值相同）后重新部署'
+        '未授权：生产环境已配置服务端 API Key，必须同时设置 API_ACCESS_TOKEN 与 VITE_API_ACCESS_TOKEN（值相同）后重新部署'
       ),
       { status: 403 }
     );
   }
 
-  // 未配置令牌：Origin/Referer 防御（可被非浏览器伪造，生产强烈建议配置令牌）
-  if (getAllowedSiteOrigins().size === 0) {
-    throw Object.assign(
-      new Error('未授权：请配置 SITE_URL / ALLOWED_ORIGINS，或设置 API_ACCESS_TOKEN'),
-      { status: 403 }
-    );
-  }
-
-  if (!requestFromAllowedSite(req)) {
-    throw Object.assign(
-      new Error('未授权：请在应用页面内使用，或在设置中填写个人 API Key'),
-      { status: 403 }
-    );
-  }
+  if (requestHasValidAccessToken(req)) return;
+  throw Object.assign(
+    new Error(
+      '未授权：需要访问令牌。请在 Vercel 同时配置 API_ACCESS_TOKEN 与 VITE_API_ACCESS_TOKEN（值相同）后重新部署'
+    ),
+    { status: 403 }
+  );
 }
 
 function resolveRequestApiKey(provider, clientApiKey) {

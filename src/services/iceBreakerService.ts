@@ -1,27 +1,17 @@
 import type { UserSettings } from '../types';
 import { loadSettings } from './storageService';
-import { normalizeApiKey } from '../utils/apiKey';
-import { apiFetch } from '../utils/apiFetch';
-import { checkApiHealth } from './aiService';
 import { type IceBreakerScenarioId, getIceBreakerScenario } from '../constants/iceBreakerScenarios';
 import {
   ICE_BREAKER_SYSTEM_PROMPT,
   buildIceBreakerUserPrompt,
 } from '../constants/iceBreakerPrompts';
 import { buildProfileContextBlock } from '../utils/profileContext';
-import { getModelCallParams, mergeSystemPrompt } from '../constants/modelCallParams';
-import { resolveModelForSettings } from '../constants/modelRouting';
 import {
   parseIceBreakerBundle,
   parseIceBreakerOutput,
   type IceBreakerBundle,
 } from '../utils/iceBreakerParse';
-
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
+import { assertApiKeyConfigured, postChatCompletion } from './clientChatApi';
 
 async function callIceBreakerApi(
   cfg: UserSettings,
@@ -29,42 +19,18 @@ async function callIceBreakerApi(
   retryStrict = false,
   signal?: AbortSignal
 ): Promise<string> {
-  const chatParams = getModelCallParams('chat');
-  const model = resolveModelForSettings('chat', cfg);
-  const apiKey = normalizeApiKey(cfg.apiKey);
-
   const userContent = retryStrict
     ? `${userPrompt}\n\n【严重错误 · 上次输出不合规】\n只输出 JSON：{"lines":["句1"],"topics":["续聊1"]}，不要任何说明文字。`
     : userPrompt;
 
-  const res = await apiFetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return postChatCompletion({
+    settings: cfg,
+    systemPrompt: ICE_BREAKER_SYSTEM_PROMPT,
+    userContent,
     signal,
-    body: JSON.stringify({
-      provider: cfg.provider,
-      apiKey,
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: mergeSystemPrompt(chatParams.systemTone, ICE_BREAKER_SYSTEM_PROMPT),
-        },
-        { role: 'user', content: userContent },
-      ],
-      temperature: retryStrict ? 0.75 : 0.88,
-      maxTokens: 420,
-      jsonMode: true,
-    }),
+    temperature: retryStrict ? 0.75 : 0.88,
+    maxTokens: 420,
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(String(err.error || '生成失败'));
-  }
-
-  const data = await res.json();
-  return String(data.content || '');
 }
 
 /** 灵焰破冰救场：开场白 + 续聊话题 */
@@ -74,7 +40,7 @@ export async function generateIceBreakerBundle(
   signal?: AbortSignal
 ): Promise<IceBreakerBundle> {
   const cfg = settings ?? loadSettings();
-  await assertKey(cfg);
+  await assertApiKeyConfigured(cfg);
   const scenario = getIceBreakerScenario(scenarioId);
   const profileBlock = buildProfileContextBlock(cfg);
   const userPrompt = buildIceBreakerUserPrompt(

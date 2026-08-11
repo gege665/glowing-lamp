@@ -1,8 +1,5 @@
 import type { UserSettings } from '../types';
 import { loadSettings } from './storageService';
-import { normalizeApiKey } from '../utils/apiKey';
-import { apiFetch } from '../utils/apiFetch';
-import { checkApiHealth } from './aiService';
 import {
   type WorkshopCategoryId,
   WORKSHOP_SYSTEM_PROMPT,
@@ -10,39 +7,16 @@ import {
   pickWorkshopBank,
   getWorkshopCategory,
 } from '../constants/workshopCategories';
-import { getModelCallParams, mergeSystemPrompt } from '../constants/modelCallParams';
-import { resolveModelForSettings } from '../constants/modelRouting';
 import { buildToneModifierBlock, getReplyLengthCap, type ToneModifierId } from '../constants/toneModifiers';
-
-async function assertKey(settings: UserSettings): Promise<void> {
-  if (settings.apiKey?.trim()) return;
-  const health = await checkApiHealth();
-  if (!health.serverKeyConfigured) throw new Error('请先配置 API Key');
-}
+import { assertApiKeyConfigured, postChatCompletion } from './clientChatApi';
+import { extractJsonObject } from '../utils/extractJsonObject';
 
 function extractLines(raw: string): string[] {
-  const text = raw.trim();
-  try {
-    const obj = JSON.parse(text) as { lines?: unknown };
-    if (Array.isArray(obj.lines)) {
-      return obj.lines.map((l) => String(l).trim()).filter(Boolean);
-    }
-  } catch {
-    /* continue */
+  const obj = extractJsonObject(raw);
+  if (obj && Array.isArray(obj.lines)) {
+    return obj.lines.map((l) => String(l).trim()).filter(Boolean);
   }
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start >= 0 && end > start) {
-    try {
-      const obj = JSON.parse(text.slice(start, end + 1)) as { lines?: unknown };
-      if (Array.isArray(obj.lines)) {
-        return obj.lines.map((l) => String(l).trim()).filter(Boolean);
-      }
-    } catch {
-      /* fallthrough */
-    }
-  }
-  return text
+  return String(raw || '')
     .split('\n')
     .map((l) => l.replace(/^\d+[.)、]\s*/, '').replace(/^[-*•]\s*/, '').trim())
     .filter((l) => l && !l.startsWith('{') && !l.startsWith('```'))
@@ -67,38 +41,14 @@ async function callWorkshopApi(
   userPrompt: string,
   signal?: AbortSignal
 ): Promise<string> {
-  const chatParams = getModelCallParams('chat');
-  const model = resolveModelForSettings('chat', cfg);
-  const apiKey = normalizeApiKey(cfg.apiKey);
-
-  const res = await apiFetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  return postChatCompletion({
+    settings: cfg,
+    systemPrompt: WORKSHOP_SYSTEM_PROMPT,
+    userContent: userPrompt,
     signal,
-    body: JSON.stringify({
-      provider: cfg.provider,
-      apiKey,
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: mergeSystemPrompt(chatParams.systemTone, WORKSHOP_SYSTEM_PROMPT),
-        },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.85,
-      maxTokens: 480,
-      jsonMode: true,
-    }),
+    temperature: 0.85,
+    maxTokens: 480,
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(String((err as { error?: string }).error || '话术工坊生成失败'));
-  }
-
-  const data = await res.json();
-  return String(data.content || '');
 }
 
 export interface WorkshopGenerateOptions {
@@ -134,7 +84,7 @@ export async function generateWorkshopLines(
   }
 
   try {
-    await assertKey(cfg);
+    await assertApiKeyConfigured(cfg);
     const prompt = buildWorkshopUserPrompt({
       categoryId: opts.categoryId,
       sceneNote: opts.sceneNote,
@@ -172,7 +122,7 @@ export async function refineWorkshopLines(
   const cfg = settings ?? loadSettings();
   const cat = getWorkshopCategory(categoryId);
   try {
-    await assertKey(cfg);
+    await assertApiKeyConfigured(cfg);
     const prompt = `【话术微调】分类：${cat.label}
 【原话术】
 ${lines.map((l, i) => `${i + 1}. ${l}`).join('\n')}

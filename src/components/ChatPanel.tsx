@@ -16,9 +16,7 @@ import {
   ChevronDown,
   MoreHorizontal,
 } from 'lucide-react';
-import type { ChatMessage } from '../types';
 import { useAppStore } from '../store/appStore';
-import { saveMessages, generateId, saveAnalysis } from '../services/storageService';
 import {
   parseMessageWithPlatform,
   PLATFORM_QUICK_TAGS,
@@ -35,6 +33,7 @@ export default function ChatPanel() {
   const settings = useAppStore((s) => s.settings);
   const addMessage = useAppStore((s) => s.addMessage);
   const deleteMessage = useAppStore((s) => s.deleteMessage);
+  const importMessages = useAppStore((s) => s.importMessages);
   const resetChatContext = useAppStore((s) => s.resetChatContext);
   const selectedMessageId = useAppStore((s) => s.selectedMessageId);
   const selectMessage = useAppStore((s) => s.selectMessage);
@@ -148,20 +147,10 @@ export default function ChatPanel() {
       showToast('请先粘贴聊天记录');
       return;
     }
-    const existing = useAppStore.getState().messages;
-    const imported: ChatMessage[] = parsed.map((p) => ({
-      id: generateId(),
-      role: p.role,
-      content: p.content.trim(),
-      timestamp: Date.now(),
-    }));
-    const messages = [...existing, ...imported];
-    saveMessages(messages);
-    saveAnalysis(null);
-    useAppStore.setState({ messages, analysis: null });
+    importMessages(parsed);
     setBulkText('');
     setBulkMode(false);
-    showToast(`已导入 ${imported.length} 条，点击下方按钮生成话术`);
+    showToast(`已导入 ${parsed.length} 条，点击下方按钮生成话术`);
   };
 
   const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,18 +173,8 @@ export default function ChatPanel() {
         showToast('未识别到对话内容');
         return;
       }
-      const existing = useAppStore.getState().messages;
-      const imported: ChatMessage[] = lines.map((p) => ({
-        id: generateId(),
-        role: p.role,
-        content: p.content,
-        timestamp: Date.now(),
-      }));
-      const messages = [...existing, ...imported];
-      saveMessages(messages);
-      saveAnalysis(null);
-      useAppStore.setState({ messages, analysis: null });
-      showToast(`截图识别 ${imported.length} 条，点击下方按钮生成话术`);
+      importMessages(lines);
+      showToast(`截图识别 ${lines.length} 条，点击下方按钮生成话术`);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
       showToast(err instanceof Error ? err.message : '截图识别失败');

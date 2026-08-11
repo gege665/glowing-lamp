@@ -95,3 +95,42 @@ describe('assertProductionApiAccess · 令牌强制模式', () => {
     );
   });
 });
+
+describe('assertProductionApiAccess · 未配置令牌时 fail-closed', () => {
+  const envSnapshot = {
+    NODE_ENV: process.env.NODE_ENV,
+    API_ACCESS_TOKEN: process.env.API_ACCESS_TOKEN,
+    AIYIWEI_API_KEY: process.env.AIYIWEI_API_KEY,
+    SITE_URL: process.env.SITE_URL,
+  };
+
+  beforeEach(() => {
+    process.env.NODE_ENV = 'production';
+    process.env.AIYIWEI_API_KEY = 'sk-server-key';
+    process.env.SITE_URL = 'https://glowing-lamp-two.vercel.app';
+    delete process.env.API_ACCESS_TOKEN;
+  });
+
+  afterEach(() => {
+    for (const [k, v] of Object.entries(envSnapshot)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it('有服务端 Key 但无 API_ACCESS_TOKEN → 即使 Origin 合法也 403', () => {
+    const req = {
+      headers: { origin: 'https://glowing-lamp-two.vercel.app' },
+    };
+    expect(() => assertProductionApiAccess(req, 'aiyiwei', { apiKey: '' })).toThrow(
+      /必须同时设置 API_ACCESS_TOKEN/
+    );
+  });
+
+  it('真实 BYOK 仍可通行', () => {
+    const req = { headers: {} };
+    expect(() =>
+      assertProductionApiAccess(req, 'aiyiwei', { apiKey: 'sk-user-own-key' })
+    ).not.toThrow();
+  });
+});
