@@ -29,7 +29,6 @@ import SceneStyleSelector from './SceneStyleSelector';
 import ChatMemoryPanel from './ChatMemoryPanel';
 import MobileOptionsAccordion from './MobileOptionsAccordion';
 import QuickStartGuide from './QuickStartGuide';
-import LingyanDragonIcon from './LingyanDragonIcon';
 
 export default function ChatPanel() {
   const messages = useAppStore((s) => s.messages);
@@ -45,7 +44,6 @@ export default function ChatPanel() {
   const updateSettings = useAppStore((s) => s.updateSettings);
   const showToast = useAppStore((s) => s.showToast);
   const setIceBreakerOpen = useAppStore((s) => s.setIceBreakerOpen);
-  const setFloatingImeOpen = useAppStore((s) => s.setFloatingImeOpen);
 
   const [input, setInput] = useState('');
   const [role, setRole] = useState<'me' | 'other'>('other');
@@ -602,15 +600,6 @@ export default function ChatPanel() {
                   rows={2}
                   className="composer-input"
                 />
-                <button
-                  type="button"
-                  onClick={() => setFloatingImeOpen(true)}
-                  className="ime-composer-dragon shrink-0 self-end mb-0.5"
-                  title="打开灵焰小火龙输入法"
-                  aria-label="打开灵焰小火龙输入法"
-                >
-                  <LingyanDragonIcon className="w-9 h-9" />
-                </button>
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}

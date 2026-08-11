@@ -310,10 +310,6 @@
     @apply w-11 h-11 rounded-full border-2 border-orange-400 bg-gradient-to-br from-orange-50 to-orange-200 flex items-center justify-center shadow-lg shadow-orange-500/30 active:scale-95;
   }
 
-  .ime-composer-dragon {
-    @apply w-11 h-11 rounded-full border-2 border-orange-400/90 bg-gradient-to-br from-orange-100 to-orange-300 flex items-center justify-center shadow-md shadow-orange-500/25 touch-manipulation active:scale-95;
-  }
-
   .ime-key {
     @apply h-10 rounded-[5px] bg-white text-[15px] font-medium text-stone-800 shadow-[0_1px_0_#898a8d] active:bg-stone-200;
   }
