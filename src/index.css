@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply h-full;
+    height: 100dvh;
+  }
+
+  body {
+    @apply h-full m-0 bg-soul-950 text-gray-100 antialiased;
+    background-color: #0f1117;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  #root {
+    @apply h-full min-h-0;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-soul-700/50 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-soul-600/70;
+  }
+}
+
+@layer components {
+  .panel-card {
+    @apply bg-soul-900/60 backdrop-blur-xl border border-soul-700/30 rounded-xl sm:rounded-2xl;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2.5 bg-gradient-to-r from-soul-600 to-pink-600 hover:from-soul-500 hover:to-pink-500
+           text-white font-medium rounded-xl transition-all duration-200 touch-manipulation
+           min-h-[44px] sm:min-h-0 sm:py-2
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply px-3 py-2.5 sm:py-1.5 bg-soul-800/80 hover:bg-soul-700/80 text-soul-200
+           rounded-lg transition-all duration-200 text-sm border border-soul-600/30 touch-manipulation
+           min-h-[44px] sm:min-h-0;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-2.5 sm:py-1.5 hover:bg-soul-800/50 text-soul-300 rounded-lg transition-all duration-200 text-sm touch-manipulation
+           min-h-[44px] sm:min-h-0;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 sm:py-2.5 bg-soul-950/50 border border-soul-700/40 rounded-xl
+           text-gray-100 placeholder-soul-400/60 focus:outline-none focus:border-soul-500
+           focus:ring-1 focus:ring-soul-500/50 transition-all text-base sm:text-sm;
+  }
+
+  /** 底部输入区：移动端加大字号、边框与触控区域 */
+  .composer-input {
+    @apply input-field flex-1 resize-none leading-relaxed
+           max-lg:text-[15px] max-lg:py-3 max-lg:px-3.5
+           max-lg:min-h-[3.25rem] max-lg:border-soul-500/55 max-lg:bg-soul-900/75
+           max-lg:placeholder:text-soul-400/80;
+  }
+
+  .composer-role-btn {
+    @apply flex-1 rounded-xl text-[15px] sm:text-sm font-medium transition-all min-h-[44px] sm:min-h-0 sm:py-1.5 py-2.5 touch-manipulation;
+  }
+
+  .composer-action-btn {
+    @apply shrink-0 flex flex-col items-center justify-center gap-0.5 rounded-xl touch-manipulation
+           min-h-[48px] min-w-[48px] sm:min-h-[44px] sm:min-w-[44px] sm:flex-row sm:gap-0;
+  }
+
+  .tag {
+    @apply inline-flex items-center px-2.5 py-1 sm:py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /** 可点击标签/chip：移动端加大触控区域 */
+  .tag-touch {
+    @apply tag min-h-[40px] sm:min-h-[28px] px-3 sm:px-2.5 touch-manipulation;
+  }
+
+  .composer-tag {
+    @apply inline-flex items-center shrink-0 rounded-full font-medium touch-manipulation
+           text-xs px-3 py-1.5 min-h-[36px] sm:min-h-[28px] sm:text-[10px] sm:px-2.5 sm:py-0.5;
+  }
+
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
